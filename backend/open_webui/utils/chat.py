@@ -66,17 +66,32 @@ async def generate_direct_chat_completion(
     user: Any,
     models: dict,
 ):
-    print("generate_direct_chat_completion")
-
     metadata = form_data.pop("metadata", {})
-
+    
+    # Extract chat_id from metadata
+    chat_id = metadata.get("chat_id")
     user_id = metadata.get("user_id")
     session_id = metadata.get("session_id")
-    request_id = str(uuid.uuid4())  # Generate a unique request ID
-
+    request_id = str(uuid.uuid4())
+    
+    # Check if this is a direct chat interaction
+    use_conversation_endpoint = (
+        metadata.get("direct") and  # Model is direct
+        metadata.get("chat_id") and # We have a chat ID
+        form_data.get("use_conversation_endpoint", False)
+    )
+    
+    if "use_conversation_endpoint" in form_data:
+        del form_data["use_conversation_endpoint"]
+    
     event_caller = get_event_call(metadata)
-
     channel = f"{user_id}:{session_id}:{request_id}"
+
+        # Set request path based on conversation endpoint flag
+    if use_conversation_endpoint:
+        form_data["chat_id"] = f"{chat_id}"
+    else:
+        form_data["chat_id"] = ""
 
     if form_data.get("stream"):
         q = asyncio.Queue()
@@ -90,7 +105,6 @@ async def generate_direct_chat_completion(
         # Register the listener
         sio.on(channel, message_listener)
 
-        # Start processing chat completion in background
         res = await event_caller(
             {
                 "type": "request:chat:completion",
@@ -132,7 +146,9 @@ async def generate_direct_chat_completion(
 
             # Return the streaming response
             return StreamingResponse(
-                event_generator(), media_type="text/event-stream", background=background
+                event_generator(), 
+                media_type="text/event-stream",
+                background=background
             )
         else:
             raise Exception(str(res))

@@ -3,6 +3,7 @@ import socketio
 import logging
 import sys
 import time
+import aiohttp
 
 from open_webui.models.users import Users, UserNameResponse
 from open_webui.models.channels import Channels

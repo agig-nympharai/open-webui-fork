@@ -1016,6 +1016,7 @@ async def chat_completion(
         )
 
     try:
+        form_data["use_conversation_endpoint"] = True
         response = await chat_completion_handler(request, form_data, user)
 
         return await process_chat_response(
